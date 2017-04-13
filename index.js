@@ -7,10 +7,10 @@ const tmpdir = require('os').tmpdir();
 const fs = require('fs');
 const [name, outputFile] = process.argv.slice(2);
 
+const QUIT = 'Quit'
+
 function writeToFile(instanceIpAddress) {
   return new Promise((resolve, reject) => {
-    console.log({outputFile});
-
     fs.writeFile(outputFile, instanceIpAddress, err => {
       err ? reject(err) : resolve();
     });
@@ -18,15 +18,19 @@ function writeToFile(instanceIpAddress) {
 }
 
 async function createMenu(items) {
-  let menu = require('node-menu').resetMenu();
+  let choices = items.map((instance) => {
+    let { InstanceId, PrivateIpAddress } = instance
+    return `Instance ID: ${InstanceId} IP: ${PrivateIpAddress}`;
+  });
 
-  return new Promise((resolve, reject) => {
-    items.forEach((instance)  => {
-      let {PrivateIpAddress, InstanceId} = instance;
-      menu = menu.addItem(`${PrivateIpAddress} ${InstanceId}`, () => { resolve(instance); });
-    });
+  // allow the choice to quit
+  choices.push(QUIT);
 
-    menu.start();
+  return require('inquirer').prompt({
+    type: 'list',
+    name: 'answer',
+    message: 'Select the instance you want to ssh into:',
+    choices
   });
 }
 
@@ -46,18 +50,26 @@ async function getInstances() {
 
 
 (async function selectInstance() {
-    
-  const foundInstances = await getInstances();
+  try {
+    const foundInstances = await getInstances();
 
-  console.log({foundInstances});
+    let { answer } = await createMenu(foundInstances);
 
-  let selectedInstance = await createMenu(foundInstances);
+    if (answer === QUIT) {
+      // exit with exit code 2 (user quit)
+      return process.exit(2);
+    }
 
-  console.log({selectedInstance});
+    let answerArray = answer.split(' ');
+    let privateIpAddress = answerArray[answerArray.length - 1];
 
-  await writeToFile(selectedInstance.PrivateIpAddress);
+    await writeToFile(privateIpAddress);
 
-  console.log('ending');
-
-  process.exit(0);
+    // everything good, exit with code 0 (all good)
+    process.exit(0);
+  } catch (err) {
+    console.error(err)
+    // return with exit code 1 (error)
+    process.exit(1);
+  }
 })();
