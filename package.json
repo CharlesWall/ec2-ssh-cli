@@ -1,16 +1,20 @@
 {
   "name": "ec2-ssh-cli",
   "version": "0.0.1",
-  "description": "",
+  "description": "command line interface for sshing into ec2 instances",
   "main": "index.js",
   "bin": {
     "ec2-ssh": "./ssh-selection.sh"
   },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:CharlesWall/ec2-ssh-cli.git"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Charles Wall <CharlesTWall3@gmail.com>, Charlie Duong <charlieduong94@gmail.com>",
+  "license": "MIT",
   "dependencies": {
     "aws-sdk": "^2.40.0",
     "inquirer": "^3.0.6",
