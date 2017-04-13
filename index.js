@@ -19,9 +19,23 @@ function writeToFile(instanceIpAddress) {
 
 async function createMenu(items) {
   let choices = items.map((instance) => {
-    let { InstanceId, PrivateIpAddress } = instance
-    return `Instance ID: ${InstanceId} IP: ${PrivateIpAddress}`;
-  });
+    //console.log(JSON.stringify(instance, null, 4));
+    let { InstanceId, PrivateIpAddress, State, Tags } = instance
+    let version, cluster;
+    try {
+      version = Tags.find(tag => tag.Key === "version").Value;
+    } catch (error) {
+      cluster = "Unknown";
+    }
+    try {
+      instanceName = Tags.find(tag => tag.Key === "Name").Value;
+    } catch (error) {
+      instanceName = "Unknown";
+    }
+
+    return `${instanceName} ${version} ${InstanceId} ${State.Name} ${PrivateIpAddress}`;
+  }).sort();
+
 
   // allow the choice to quit
   choices.push(QUIT);
