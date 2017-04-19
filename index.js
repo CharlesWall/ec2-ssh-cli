@@ -5,9 +5,14 @@ const ec2 = new aws.EC2({region: 'us-east-1'});
 
 const tmpdir = require('os').tmpdir();
 const fs = require('fs');
+const inquirer = require('inquirer');
 const [name, outputFile] = process.argv.slice(2);
 
-const QUIT = 'Quit'
+const BACK = 'Back';
+const SSH = 'ssh';
+const INFO = 'Info';
+const QUIT = 'Quit';
+const YML = require('js-yaml');
 
 function writeToFile(instanceIpAddress) {
   return new Promise((resolve, reject) => {
@@ -17,7 +22,7 @@ function writeToFile(instanceIpAddress) {
   });
 }
 
-async function createMenu(items) {
+async function createInstanceMenu(items) {
   let choices = items.map((instance) => {
     //console.log(JSON.stringify(instance, null, 4));
     let { InstanceId, PrivateIpAddress, State, Tags } = instance
@@ -33,19 +38,27 @@ async function createMenu(items) {
       instanceName = "Unknown";
     }
 
-    return `${instanceName} ${version} ${InstanceId} ${State.Name} ${PrivateIpAddress}`;
+    return `${InstanceId} ${instanceName} ${version} ${State.Name} ${PrivateIpAddress}`;
   }).sort();
 
 
   // allow the choice to quit
   choices.push(QUIT);
 
-  return require('inquirer').prompt({
+  return createMenu(choices, 'Select the instance you want to ssh into:');
+}
+
+function createMenu(choices, message) {
+  return inquirer.prompt({
     type: 'list',
     name: 'answer',
-    message: 'Select the instance you want to ssh into:',
+    message,
     choices
   });
+}
+
+function createActionsMenu(instanceSelection) {
+  return createMenu([SSH, INFO, BACK], `Choose action for ${instanceSelection}:`);
 }
 
 async function getInstances() {
@@ -62,28 +75,43 @@ async function getInstances() {
   return foundInstances;
 }
 
+async function selectInstanceAction(instanceInfo) {
+    let ipAddress = instanceInfo.PublicIpAddress || instanceInfo.PrivateIpAddress
 
-(async function selectInstance() {
+    let { answer: action } = await createActionsMenu(instanceInfo);
+
+    if (action === SSH) {
+      await writeToFile(`ssh -vv ${ipAddress}`);
+      // everything good, exit with code 0 (all good)
+      process.exit(0);
+    } else if (action === BACK) {
+      await selectInstance();
+    } else if (action === INFO) {
+      console.log(YML.safeDump(instanceInfo));
+      await selectInstanceAction(instanceInfo);
+    }
+}
+
+async function selectInstance() {
   try {
     const foundInstances = await getInstances();
 
-    let { answer } = await createMenu(foundInstances);
+    let { answer: instanceSelection } = await createInstanceMenu(foundInstances);
 
-    if (answer === QUIT) {
+    if (instanceSelection === QUIT) {
       // exit with exit code 2 (user quit)
       return process.exit(2);
     }
 
-    let answerArray = answer.split(' ');
-    let privateIpAddress = answerArray[answerArray.length - 1];
+    let selectedInstanceId = instanceSelection.split(' ')[0];
+    let selectedInstanceInfo = foundInstances.find(({InstanceId}) => InstanceId === selectedInstanceId);
 
-    await writeToFile(privateIpAddress);
-
-    // everything good, exit with code 0 (all good)
-    process.exit(0);
+    await selectInstanceAction(selectedInstanceInfo);
   } catch (err) {
     console.error(err)
     // return with exit code 1 (error)
     process.exit(1);
   }
-})();
+}
+
+selectInstance();

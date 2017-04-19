@@ -19,9 +19,9 @@ uuid=$(node uuid.js)
 set -e
 node index.js $name $uuid
 
-ip=`cat $uuid`
-echo ssh into $ip
+command=`cat $uuid`
 rm $uuid
-ssh -vv $ip
+echo $command
+$command
 
 popd
