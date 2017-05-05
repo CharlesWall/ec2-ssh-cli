@@ -62,13 +62,17 @@ function createActionsMenu(instanceSelection) {
 }
 
 async function getInstances() {
-  let Filters = [{
-    Name: 'tag:Name',
-    Values: [ name ]
-  }];
+  let options = {};
+
+  if (name !== '_') { 
+    options.Filters = [{
+      Name: 'tag:Name',
+      Values: [ name ]
+    }];
+  }
 
   let foundInstances = [];
-  (await ec2.describeInstances({ Filters }).promise()).Reservations.forEach(({Instances}) => {
+  (await ec2.describeInstances(options).promise()).Reservations.forEach(({Instances}) => {
     Instances.forEach(instance => foundInstances.push(instance));
   });
 
@@ -95,6 +99,11 @@ async function selectInstanceAction(instanceInfo) {
 async function selectInstance() {
   try {
     const foundInstances = await getInstances();
+
+    if (!foundInstances.length) {
+      console.log('No instances found');
+      process.exit(3);
+    }
 
     let { answer: instanceSelection } = await createInstanceMenu(foundInstances);
 
